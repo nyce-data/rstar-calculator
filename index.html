@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>R* Vulnerability Scoring Calculator</title>
+<style>
+:root {
+  --bg: #FAFAF8;
+  --surface: #FFFFFF;
+  --surface-alt: #F3F2EE;
+  --text: #1A1A18;
+  --text-muted: #6B6A65;
+  --text-hint: #9C9B96;
+  --border: #D8D7D2;
+  --border-light: #EAEAE6;
+  --accent-blue: #185FA5;
+  --accent-blue-bg: #E6F1FB;
+  --accent-purple: #534AB7;
+  --accent-purple-bg: #EEEDFE;
+  --accent-teal: #0F6E56;
+  --accent-teal-bg: #E1F5EE;
+  --accent-amber: #854F0B;
+  --accent-amber-bg: #FAEEDA;
+  --accent-green: #3B6D11;
+  --accent-green-bg: #EAF3DE;
+  --accent-red: #A32D2D;
+  --accent-red-bg: #FCEBEB;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-mono: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1A1A18;
+    --surface: #242422;
+    --surface-alt: #2C2C2A;
+    --text: #E8E7E3;
+    --text-muted: #9C9B96;
+    --text-hint: #6B6A65;
+    --border: #444441;
+    --border-light: #353533;
+    --accent-blue: #85B7EB;
+    --accent-blue-bg: #0C447C;
+    --accent-purple: #AFA9EC;
+    --accent-purple-bg: #3C3489;
+    --accent-teal: #5DCAA5;
+    --accent-teal-bg: #085041;
+    --accent-amber: #FAC775;
+    --accent-amber-bg: #633806;
+    --accent-green: #97C459;
+    --accent-green-bg: #27500A;
+    --accent-red: #F09595;
+    --accent-red-bg: #791F1F;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; }
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+.page-header {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 1.5rem;
+}
+.page-header h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin-bottom: 0.25rem;
+}
+.page-header .subtitle {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  max-width: 600px;
+}
+.main { max-width: 820px; margin: 0 auto; padding: 0 1.5rem 3rem; }
+.dataset-info {
+  display: flex; gap: 12px; flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+.dataset-info input {
+  flex: 1; min-width: 200px;
+  padding: 0.5rem 0.75rem;
+  font-family: var(--font);
+  font-size: 0.875rem;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.dataset-info input:focus { border-color: var(--accent-blue); }
+.dataset-info input::placeholder { color: var(--text-hint); }
+.formula-bar {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+.formula {
+  font-family: var(--font-mono);
+  font-size: 0.9375rem;
+  letter-spacing: 0.02em;
+}
+.formula .w { color: var(--text-muted); }
+.score-grid {
+  display: grid;
+  grid-template-columns: 1.2fr repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 2rem;
+}
+@media (max-width: 600px) {
+  .score-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .score-grid .score-card:first-child {
+    grid-column: 1 / -1;
+  }
+}
+.score-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem;
+  text-align: center;
+}
+.score-card.composite {
+  border-color: var(--accent-blue);
+  border-width: 2px;
+}
+.score-card .label {
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 2px;
+}
+.score-card .val {
+  font-size: 1.5rem;
+  font-weight: 600;
+  font-family: var(--font-mono);
+}
+.score-card.composite .val { color: var(--accent-blue); }
+.score-card .contribution {
+  font-size: 0.6875rem;
+  color: var(--text-hint);
+  margin-top: 2px;
+}
+.risk-level {
+  display: inline-block;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.risk-low { background: var(--accent-green-bg); color: var(--accent-green); }
+.risk-medium { background: var(--accent-amber-bg); color: var(--accent-amber); }
+.risk-high { background: var(--accent-red-bg); color: var(--accent-red); }
+.risk-critical { background: var(--accent-red-bg); color: var(--accent-red); }
+.variable-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  margin-bottom: 0.75rem;
+  overflow: hidden;
+}
+.variable-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 0.875rem 1.25rem;
+  cursor: pointer; user-select: none;
+  transition: background 0.1s;
+}
+.variable-header:hover { background: var(--surface-alt); }
+.variable-badge {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 4px;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+.vb-d { background: var(--accent-blue-bg); color: var(--accent-blue); }
+.vb-p { background: var(--accent-purple-bg); color: var(--accent-purple); }
+.vb-rrs { background: var(--accent-teal-bg); color: var(--accent-teal); }
+.vb-dirs { background: var(--accent-amber-bg); color: var(--accent-amber); }
+.variable-title { flex: 1; font-size: 0.9375rem; font-weight: 500; }
+.variable-weight { font-size: 0.8125rem; color: var(--text-muted); }
+.variable-score {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  min-width: 28px;
+  text-align: right;
+}
+.variable-arrow {
+  font-size: 0.6875rem;
+  color: var(--text-hint);
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+.variable-header.open .variable-arrow { transform: rotate(90deg); }
+.variable-body { display: none; border-top: 1px solid var(--border-light); }
+.variable-body.open { display: block; }
+.var-definition {
+  padding: 0.75rem 1.25rem;
+  background: var(--surface-alt);
+  border-bottom: 1px solid var(--border-light);
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+  font-style: italic;
+}
+.tier-selector {
+  padding: 0.75rem 1.25rem;
+  background: var(--surface-alt);
+  border-bottom: 1px solid var(--border-light);
+}
+.tier-selector label {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  margin-bottom: 0.375rem;
+}
+.tier-selector label:last-child { margin-bottom: 0; }
+.tier-selector input[type="radio"] { margin: 0; cursor: pointer; }
+.rcs-input {
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid var(--border-light);
+}
+.rcs-input label {
+  display: block;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.rcs-input input {
+  width: 100px;
+  padding: 0.375rem 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  outline: none;
+  text-align: center;
+}
+.rcs-input input:focus { border-color: var(--accent-blue); }
+.factor-list { padding: 0.25rem 0; }
+.factor-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 0.625rem 1.25rem;
+  border-bottom: 1px solid var(--border-light);
+  transition: background 0.1s;
+}
+.factor-row:last-child { border-bottom: none; }
+.factor-row:hover { background: var(--surface-alt); }
+.factor-check { padding-top: 1px; flex-shrink: 0; }
+.factor-check input[type="checkbox"] {
+  width: 16px; height: 16px; cursor: pointer;
+  accent-color: var(--accent-blue);
+}
+.factor-content { flex: 1; min-width: 0; }
+.factor-condition {
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.factor-detail {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin-top: 1px;
+}
+.factor-points {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  min-width: 36px;
+  text-align: right;
+  padding-top: 2px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+.factor-points.earned { color: var(--accent-green); }
+.factor-total {
+  padding: 0.5rem 1.25rem;
+  text-align: right;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  background: var(--surface-alt);
+}
+.factor-total strong {
+  font-family: var(--font-mono);
+  color: var(--text);
+}
+.justification-area {
+  padding: 0.75rem 1.25rem;
+  background: var(--surface-alt);
+  border-top: 1px solid var(--border-light);
+}
+.justification-area label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+.justification-area .just-sublabel {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--text-hint);
+  text-transform: none;
+  letter-spacing: 0;
+  margin-bottom: 6px;
+  font-style: italic;
+}
+.triage-legend {
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.triage-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 0.5rem 1rem;
+  font-size: 0.8125rem;
+  border-bottom: 1px solid var(--border-light);
+}
+.triage-row:last-child { border-bottom: none; }
+.triage-icon { font-size: 1rem; flex-shrink: 0; width: 28px; text-align: center; }
+.triage-label { font-weight: 600; min-width: 120px; flex-shrink: 0; }
+.triage-range {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  min-width: 70px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+.triage-action { color: var(--text-muted); flex: 1; }
+.triage-red { background: var(--accent-red-bg); }
+.triage-red .triage-label { color: var(--accent-red); }
+.triage-amber { background: var(--accent-amber-bg); }
+.triage-amber .triage-label { color: var(--accent-amber); }
+.triage-green { background: var(--accent-green-bg); }
+.triage-green .triage-label { color: var(--accent-green); }
+.action-result {
+  margin-top: 2rem;
+  padding: 1.25rem 1.5rem;
+  border-radius: var(--radius-lg);
+  border: 2px solid var(--border);
+  text-align: center;
+  display: none;
+}
+.action-result.visible { display: block; }
+.action-result .ar-score {
+  font-family: var(--font-mono);
+  font-size: 2rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+.action-result .ar-tier {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-bottom: 0.375rem;
+}
+.action-result .ar-action {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+.action-result.ar-red {
+  border-color: var(--accent-red);
+  background: var(--accent-red-bg);
+}
+.action-result.ar-red .ar-score,
+.action-result.ar-red .ar-tier { color: var(--accent-red); }
+.action-result.ar-amber {
+  border-color: var(--accent-amber);
+  background: var(--accent-amber-bg);
+}
+.action-result.ar-amber .ar-score,
+.action-result.ar-amber .ar-tier { color: var(--accent-amber); }
+.action-result.ar-green {
+  border-color: var(--accent-green);
+  background: var(--accent-green-bg);
+}
+.action-result.ar-green .ar-score,
+.action-result.ar-green .ar-tier { color: var(--accent-green); }
+.justification-area textarea {
+  width: 100%;
+  min-height: 60px;
+  padding: 0.5rem 0.75rem;
+  font-family: var(--font);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  outline: none;
+  resize: vertical;
+  transition: border-color 0.15s;
+}
+.justification-area textarea:focus { border-color: var(--accent-blue); }
+.justification-area textarea::placeholder { color: var(--text-hint); }
+.actions {
+  display: flex; gap: 8px; flex-wrap: wrap;
+  margin-top: 0.5rem; margin-bottom: 2rem;
+}
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 0.5rem 1rem;
+  font-family: var(--font);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s;
+}
+.btn:hover { background: var(--surface-alt); border-color: var(--text-muted); }
+.btn:active { transform: scale(0.98); }
+.btn-primary {
+  background: var(--accent-blue);
+  color: #fff;
+  border-color: var(--accent-blue);
+}
+.btn-primary:hover { opacity: 0.9; background: var(--accent-blue); }
+.btn svg { width: 14px; height: 14px; }
+.toast {
+  position: fixed;
+  bottom: 24px; left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  background: var(--text);
+  color: var(--bg);
+  padding: 0.625rem 1.25rem;
+  border-radius: var(--radius);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  opacity: 0;
+  transition: all 0.3s ease;
+  z-index: 100;
+  pointer-events: none;
+}
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.attribution {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+  border-top: 1px solid var(--border-light);
+}
+.attribution h2 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+.attribution p, .attribution li {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.attribution ul {
+  margin: 0.5rem 0; padding-left: 1.25rem;
+}
+.attribution li { margin-bottom: 0.25rem; }
+.attribution a { color: var(--accent-blue); text-decoration: none; }
+.attribution a:hover { text-decoration: underline; }
+.attribution .version {
+  font-size: 0.75rem;
+  color: var(--text-hint);
+  margin-top: 1rem;
+}
+@media print {
+  body { background: #fff; color: #000; font-size: 11pt; }
+  .page-header { padding-top: 0.5rem; }
+  .variable-body { display: block !important; }
+  .variable-arrow { display: none; }
+  .actions { display: none; }
+  .toast { display: none; }
+  .variable-section, .score-card, .formula-bar {
+    border-color: #ccc;
+    break-inside: avoid;
+  }
+  .factor-row:hover { background: transparent; }
+  .variable-header:hover { background: transparent; }
+  .score-card.composite { border-color: #000; }
+  .justification-area textarea {
+    border: 1px solid #ccc;
+    min-height: 40px;
+  }
+  .action-result { display: block !important; border-color: #333; break-inside: avoid; }
+  .triage-legend { break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>R* vulnerability scoring calculator</h1>
+  <p class="subtitle">Rapid assessment tool for evaluating climate data vulnerability using the R* Composite Priority Index — a framework for operational triage in climate data preservation.</p>
+</div>
+
+<div class="main">
+  <div class="dataset-info">
+    <input type="text" id="ds-name" placeholder="Dataset name (e.g., NOAA Extended Reconstructed SST)">
+    <input type="text" id="ds-id" placeholder="Identifier (e.g., DOI)" style="max-width: 240px;">
+  </div>
+  <div class="dataset-info" style="margin-top: -0.75rem;">
+    <input type="text" id="ds-curator" placeholder="Primary data curator name — the &#34;P&#34; person">
+    <input type="email" id="ds-curator-email" placeholder="Curator email" style="max-width: 240px;">
+  </div>
+
+  <div class="formula-bar">
+    <div class="formula">R* = <span class="w">0.40</span>&middot;D + <span class="w">0.30</span>&middot;P + <span class="w">0.20</span>&middot;(1 &minus; RRS) + <span class="w">0.10</span>&middot;DIRS</div>
+  </div>
+
+  <div class="score-grid">
+    <div class="score-card composite">
+      <div class="label">R* composite</div>
+      <div class="val" id="r-total">0</div>
+      <div id="risk-badge"></div>
+    </div>
+    <div class="score-card">
+      <div class="label">D raw</div>
+      <div class="val" id="r-d-raw">0</div>
+      <div class="contribution" id="r-d-c">contributes 0</div>
+    </div>
+    <div class="score-card">
+      <div class="label">P raw</div>
+      <div class="val" id="r-p-raw">0</div>
+      <div class="contribution" id="r-p-c">contributes 0</div>
+    </div>
+    <div class="score-card">
+      <div class="label">RRS raw</div>
+      <div class="val" id="r-rrs-raw">0</div>
+      <div class="contribution" id="r-rrs-c">contributes 0</div>
+    </div>
+    <div class="score-card">
+      <div class="label">DIRS raw</div>
+      <div class="val" id="r-dirs-raw">0</div>
+      <div class="contribution" id="r-dirs-c">contributes 0</div>
+    </div>
+  </div>
+
+  <div class="triage-legend">
+    <div class="triage-row triage-red">
+      <span class="triage-icon">&nbsp;&#x1F6A8;&nbsp;</span>
+      <span class="triage-label">Mirror now</span>
+      <span class="triage-range">R* &ge; 70</span>
+      <span class="triage-action">Immediate multi-replica preservation; daily sync; 3+ geographic replicas</span>
+    </div>
+    <div class="triage-row triage-amber">
+      <span class="triage-icon">&nbsp;&#x26A0;&#xFE0F;&nbsp;</span>
+      <span class="triage-label">Stabilize &amp; mirror</span>
+      <span class="triage-range">R* 40&ndash;69</span>
+      <span class="triage-action">Harden repository governance; weekly sync; engage backup curatorial partners</span>
+    </div>
+    <div class="triage-row triage-green">
+      <span class="triage-icon">&nbsp;&#x1F54A;&#xFE0F;&nbsp;</span>
+      <span class="triage-label">Monitor</span>
+      <span class="triage-range">R* &lt; 40</span>
+      <span class="triage-action">Metadata harvesting; monthly synchronization checks</span>
+    </div>
+  </div>
+
+  <div id="variables"></div>
+
+  <div id="action-result" class="action-result"></div>
+
+  <div id="timestamp-bar" style="font-size: 0.8125rem; color: var(--text-hint); margin-top: 1rem; margin-bottom: 0.5rem;"></div>
+
+  <div class="actions">
+    <button class="btn btn-primary" onclick="copyResults()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+      Copy results
+    </button>
+    <button class="btn" onclick="copyJSON()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
+      Export JSON
+    </button>
+    <button class="btn" onclick="stampTime(); window.print()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      Print
+    </button>
+    <button class="btn" onclick="resetAll()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 105.64-12.36L1 10"/></svg>
+      Reset
+    </button>
+  </div>
+</div>
+
+<div class="attribution">
+  <h2>About this tool</h2>
+  <p>This calculator implements the R* Composite Priority Index, a rapid assessment methodology for operational triage in climate data preservation. R* is designed for crisis conditions — it assumes institutional instability rather than steady-state operations, and explicitly accounts for the human expertise dimension of data risk. It is not a substitute for strategic value assessment (see Karl utility scoring); it provides the urgency signal that tells you where to look first.</p>
+  <ul>
+    <li><strong>R* framework:</strong> S.C. Diggs, T.R. Karl, R. Keeling — Ensemble Approach to Data Risk Assessment (v2.0). Developed through 70+ structured expert interviews and validated through application to NOAA, IRI, and NODD dataset inventories.</li>
+    <li><strong>RRS formal instrument:</strong> Repository Crisis Scorecards project — <a href="https://doi.org/10.5281/zenodo.15208172">doi.org/10.5281/zenodo.15208172</a> — based on Schuster, Mayernik, Mullendore &amp; Marquis (2023), <em>Bull. Amer. Meteor. Soc.</em>, 104, E2053&ndash;E2064. Contact: <a href="mailto:rcs@esipfed.org">rcs@esipfed.org</a></li>
+    <li><strong>Associated with:</strong> CO-DAN (Climate/Ocean Data Action Network) and ESIP</li>
+  </ul>
+  <p class="version">Knowledge Graph Template v5.0 (2026-04-03) &middot; Calculator v2.0</p>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const VARS = [
+  {
+    id: "D", label: "Data risk", badge: "vb-d", weight: 0.40, invert: false,
+    hasTier: false,
+    definition: "Probability of loss through technical failure, policy disruption, or infrastructure degradation. Includes storage system vulnerabilities, format obsolescence, access infrastructure dependencies, and the direct effects of program terminations or defunding. Weighted most heavily because it is the most direct signal of imminent loss.",
+    factors: [
+      { pts: 30, cond: "Active or threatened program termination/defunding", detail: "The program producing or hosting this dataset has been cut, is under active budget threat, or has lost its legislative mandate" },
+      { pts: 25, cond: "Storage system end-of-life or single point of failure", detail: "Data resides on infrastructure that is aging out, unsupported, or has no failover \u2014 a single system going down means data goes offline" },
+      { pts: 20, cond: "Access infrastructure fragile or unfunded", detail: "The portal, API, or distribution system serving users is grant-funded, maintained by a single developer, or at risk of going dark" },
+      { pts: 15, cond: "Format obsolescence", detail: "Data stored in proprietary or legacy formats whose reader tools are unmaintained or vendor-dependent" },
+      { pts: 10, cond: "Political sensitivity", detail: "Dataset subject to active suppression, alteration pressure, or interference that could result in records being removed, modified, or access-restricted for non-scientific reasons" }
+    ]
+  },
+  {
+    id: "P", label: "People risk", badge: "vb-p", weight: 0.30, invert: false,
+    hasTier: false,
+    definition: "Vulnerability created when critical institutional knowledge resides in a small number of individuals. When a lead data curator retires without a documented succession plan, or a wave of RIFs eliminates the team that knows how to run a specialized processing chain, the data may still technically exist while becoming operationally inaccessible. That kind of loss is invisible to systems that only track files and metadata. P makes it visible.",
+    factors: [
+      { pts: 35, cond: "No documented succession plan", detail: "No written plan identifies a successor or outlines knowledge transfer steps for critical roles" },
+      { pts: 25, cond: "Key personnel retirement-eligible", detail: "One or more people critical to production or QC eligible to retire within 2 years" },
+      { pts: 25, cond: "Critical undocumented knowledge", detail: "Processing, calibration, or QC expertise held by individual(s) but not captured in documentation or code" },
+      { pts: 15, cond: "Single person is point of failure", detail: "Loss of one individual would halt production, QC, or distribution" }
+    ]
+  },
+  {
+    id: "RRS", label: "Repository resilience", badge: "vb-rrs", weight: 0.20, invert: true,
+    hasTier: true,
+    tierLabel1: "Tier 1: Formal RCS Repository Resilience Scorecard has been completed",
+    tierLabel2: "Tier 2: Use rapid assessment checklist (no formal RCS available)",
+    definition: "Robustness of the hosting institution\u2019s data infrastructure: governance stability, redundancy, backup arrangements, distributed replication, and track record through prior funding disruptions. Because higher resilience means lower risk, it enters the formula inverted. A score of 80 on RRS becomes a contribution of 4 to R*, correctly rewarding well-governed repositories while flagging fragile ones.",
+    factors: [
+      { pts: 25, cond: "Geographic redundancy", detail: "\u22652 geographically independent sites hold verified copies" },
+      { pts: 20, cond: "Regular backup integrity verification", detail: "Checksum checks quarterly or more frequently" },
+      { pts: 20, cond: "Disaster recovery plan tested", detail: "Tested within the past 2 years with documented results" },
+      { pts: 20, cond: "Stable institutional funding", detail: "No imminent political, budgetary, or administrative threat to operations" },
+      { pts: 15, cond: "Track record through prior disruption", detail: "Repository has survived at least one major funding or leadership disruption without data loss" }
+    ]
+  },
+  {
+    id: "DIRS", label: "Dependent infrastructure resilience", badge: "vb-dirs", weight: 0.10, invert: false,
+    hasTier: false,
+    definition: "The invisible dependency layer \u2014 external infrastructure that datasets depend on but don\u2019t control: calibration facilities, satellite ground stations, field observation networks, specialized instrumentation labs. When NOAA\u2019s Global Monitoring Laboratory calibration services were threatened, every dataset whose quality assurance depends on those standards became more fragile immediately, regardless of its own hosting situation.",
+    factors: [
+      { pts: 25, cond: "Calibration facility dependency", detail: "Dataset quality or continuity depends on an external calibration service, reference standard lab, or inter-comparison program that could be disrupted" },
+      { pts: 25, cond: "Observation network or sensor platform at risk", detail: "Upstream sensors, ground stations, buoys, or satellite instruments that feed this dataset are aging out, losing funding, or operating past design life" },
+      { pts: 20, cond: "Upstream data supply chain at risk", detail: "Dataset depends on external data feeds (reanalysis inputs, ancillary fields, reference datasets) that are themselves vulnerable to disruption" },
+      { pts: 15, cond: "External processing infrastructure dependency", detail: "Specialized computing, software, or lab facilities not controlled by the data steward are required to produce or update this dataset" },
+      { pts: 15, cond: "No alternative supplier", detail: "If the primary external dependency fails, no backup source, workaround, or substitute exists to maintain data quality or continuity" }
+    ]
+  }
+];
+
+const state = {};
+VARS.forEach(v => {
+  state[v.id] = { tier: v.hasTier ? "tier2" : null, rcsScore: null, checks: v.factors.map(() => false), justification: "" };
+});
+
+function buildUI() {
+  const container = document.getElementById("variables");
+  VARS.forEach(v => {
+    const sec = document.createElement("div");
+    sec.className = "variable-section";
+
+    let html = `
+      <div class="variable-header" data-id="${v.id}">
+        <span class="variable-badge ${v.badge}">${v.id}</span>
+        <span class="variable-title">${v.label}</span>
+        <span class="variable-weight">\u00d7 ${v.weight.toFixed(2)}${v.invert ? " (inverted)" : ""}</span>
+        <span class="variable-score" id="vscore-${v.id}">0</span>
+        <span class="variable-arrow">\u25B6</span>
+      </div>
+      <div class="variable-body" id="vbody-${v.id}">
+        <div class="var-definition">${v.definition}</div>`;
+
+    if (v.hasTier) {
+      html += `
+        <div class="tier-selector">
+          <label><input type="radio" name="tier-${v.id}" value="tier1" onchange="setTier('${v.id}','tier1')"> ${v.tierLabel1}</label>
+          <label><input type="radio" name="tier-${v.id}" value="tier2" checked onchange="setTier('${v.id}','tier2')"> ${v.tierLabel2}</label>
+        </div>
+        <div class="rcs-input" id="rcs-${v.id}" style="display:none;">
+          <label>Formal RCS score (0\u2013100):</label>
+          <input type="number" min="0" max="100" value="" placeholder="0\u2013100"
+                 oninput="setRCSScore('${v.id}', this.value)" id="rcs-val-${v.id}">
+        </div>`;
+    }
+
+    html += `<div class="factor-list" id="factors-${v.id}">`;
+    v.factors.forEach((f, i) => {
+      html += `
+        <div class="factor-row">
+          <div class="factor-check">
+            <input type="checkbox" id="cb-${v.id}-${i}" onchange="toggleFactor('${v.id}',${i},this.checked)">
+          </div>
+          <div class="factor-content">
+            <div class="factor-condition">${f.cond}</div>
+            <div class="factor-detail">${f.detail}</div>
+          </div>
+          <div class="factor-points" id="fp-${v.id}-${i}">+${f.pts}</div>
+        </div>`;
+    });
+    html += `</div>
+      <div class="factor-total" id="ftotal-${v.id}">Raw score: <strong>0</strong> / 100</div>
+      <div class="justification-area">
+        <label>Assessor justification for ${v.id} &mdash; ${v.label}</label>
+        <span class="just-sublabel">Reasoning, context, and gut-check notes for this variable</span>
+        <textarea id="just-${v.id}" placeholder="Record your reasoning for the ${v.label} selections above. Include any specific circumstances, institutional context, or situational factors that influenced your scoring but aren\u2019t captured by the checklist." oninput="state['${v.id}'].justification=this.value"></textarea>
+      </div>
+    </div>`;
+
+    sec.innerHTML = html;
+    container.appendChild(sec);
+  });
+
+  document.querySelectorAll(".variable-header").forEach(h => {
+    h.addEventListener("click", () => {
+      h.classList.toggle("open");
+      document.getElementById("vbody-" + h.dataset.id).classList.toggle("open");
+    });
+  });
+}
+
+function setTier(id, tier) {
+  state[id].tier = tier;
+  const rcsEl = document.getElementById("rcs-" + id);
+  const factorsEl = document.getElementById("factors-" + id);
+  const totalEl = document.getElementById("ftotal-" + id);
+  if (tier === "tier1") {
+    rcsEl.style.display = "block";
+    factorsEl.style.display = "none";
+    totalEl.style.display = "none";
+  } else {
+    rcsEl.style.display = "none";
+    factorsEl.style.display = "block";
+    totalEl.style.display = "block";
+    state[id].rcsScore = null;
+  }
+  recalc();
+}
+
+function setRCSScore(id, val) {
+  const n = parseInt(val);
+  state[id].rcsScore = (isNaN(n) || n < 0 || n > 100) ? null : n;
+  recalc();
+}
+
+function toggleFactor(id, idx, checked) {
+  state[id].checks[idx] = checked;
+  recalc();
+}
+
+function getRawScore(id) {
+  const v = VARS.find(x => x.id === id);
+  const s = state[id];
+  if (v.hasTier && s.tier === "tier1" && s.rcsScore !== null) {
+    return s.rcsScore;
+  }
+  let sum = 0;
+  v.factors.forEach((f, i) => { if (s.checks[i]) sum += f.pts; });
+  return sum;
+}
+
+function getContribution(id) {
+  const v = VARS.find(x => x.id === id);
+  const raw = getRawScore(id);
+  if (v.invert) {
+    return (1 - raw / 100) * v.weight * 100;
+  }
+  return raw * v.weight;
+}
+
+function recalc() {
+  let rstar = 0;
+  VARS.forEach(v => {
+    const raw = getRawScore(v.id);
+    const contrib = getContribution(v.id);
+    rstar += contrib;
+
+    document.getElementById("vscore-" + v.id).textContent = raw;
+    document.getElementById("r-" + v.id.toLowerCase() + "-raw").textContent = raw;
+    document.getElementById("r-" + v.id.toLowerCase() + "-c").textContent = "contributes " + Math.round(contrib);
+
+    v.factors.forEach((f, i) => {
+      const el = document.getElementById("fp-" + v.id + "-" + i);
+      if (state[v.id].checks[i]) {
+        el.classList.add("earned");
+        el.textContent = "+" + f.pts + " \u2713";
+      } else {
+        el.classList.remove("earned");
+        el.textContent = "+" + f.pts;
+      }
+    });
+
+    const checkSum = v.factors.reduce((s, f, i) => s + (state[v.id].checks[i] ? f.pts : 0), 0);
+    const totalEl = document.getElementById("ftotal-" + v.id);
+    if (totalEl) totalEl.innerHTML = `Raw score: <strong>${checkSum}</strong> / 100`;
+  });
+
+  const total = Math.round(rstar);
+  document.getElementById("r-total").textContent = total;
+
+  const badge = document.getElementById("risk-badge");
+  const ar = document.getElementById("action-result");
+  ar.className = "action-result visible";
+
+  if (total >= 70) {
+    badge.innerHTML = '<span class="risk-level risk-critical">\uD83D\uDEA8 Mirror now</span>';
+    ar.className += " ar-red";
+    ar.innerHTML = '<div class="ar-score">R* = ' + total + '</div>'
+      + '<div class="ar-tier">\uD83D\uDEA8 MIRROR NOW</div>'
+      + '<div class="ar-action">Immediate multi-replica preservation. Daily sync. 3+ geographic replicas. Do not wait for committee consensus.</div>';
+  } else if (total >= 40) {
+    badge.innerHTML = '<span class="risk-level risk-high">\u26A0\uFE0F Stabilize &amp; mirror</span>';
+    ar.className += " ar-amber";
+    ar.innerHTML = '<div class="ar-score">R* = ' + total + '</div>'
+      + '<div class="ar-tier">\u26A0\uFE0F STABILIZE &amp; MIRROR</div>'
+      + '<div class="ar-action">Harden repository governance. Weekly sync. Engage backup curatorial partners. Document succession plan.</div>';
+  } else {
+    badge.innerHTML = '<span class="risk-level risk-low">\uD83D\uDD4A\uFE0F Monitor</span>';
+    ar.className += " ar-green";
+    ar.innerHTML = '<div class="ar-score">R* = ' + total + '</div>'
+      + '<div class="ar-tier">\uD83D\uDD4A\uFE0F MONITOR</div>'
+      + '<div class="ar-action">Metadata harvesting. Monthly synchronization checks. Reassess annually or upon significant changes.</div>';
+  }
+
+  if (total === 0) { ar.className = "action-result"; }
+}
+
+function stampTime() {
+  const now = new Date();
+  const display = now.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })
+    + " at " + now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  document.getElementById("timestamp-bar").textContent = "Assessment exported: " + display;
+}
+
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2000);
+}
+
+function getResultsText() {
+  const name = document.getElementById("ds-name").value || "(unnamed dataset)";
+  const dsid = document.getElementById("ds-id").value || "(no identifier)";
+  const curator = document.getElementById("ds-curator").value || "(not specified)";
+  const curatorEmail = document.getElementById("ds-curator-email").value || "(not specified)";
+  const date = new Date().toISOString().replace("T", " ").replace(/\.\d+Z$/, " UTC");
+
+  let text = `R* VULNERABILITY ASSESSMENT\n`;
+  text += `${"=".repeat(60)}\n`;
+  text += `Dataset: ${name}\n`;
+  text += `Identifier: ${dsid}\n`;
+  text += `Primary data curator: ${curator}\n`;
+  text += `Curator email: ${curatorEmail}\n`;
+  text += `Assessment timestamp: ${date}\n`;
+
+  const rstar = Math.round(VARS.reduce((s, v) => s + getContribution(v.id), 0));
+  text += `R* composite score: ${rstar}`;
+  if (rstar >= 70) text += `  [MIRROR NOW]\n`;
+  else if (rstar >= 40) text += `  [STABILIZE & MIRROR]\n`;
+  else text += `  [MONITOR]\n`;
+  text += `Formula: R* = 0.40\u00b7D + 0.30\u00b7P + 0.20\u00b7(1-RRS) + 0.10\u00b7DIRS\n\n`;
+
+  VARS.forEach(v => {
+    const raw = getRawScore(v.id);
+    const contrib = Math.round(getContribution(v.id));
+    const s = state[v.id];
+    const method = v.hasTier ? (s.tier === "tier1" ? "Formal RCS" : "Rapid assessment") : "Rapid assessment";
+
+    text += `${v.id} \u2014 ${v.label.toUpperCase()}\n`;
+    text += `${"-".repeat(60)}\n`;
+    text += `  Definition: ${v.definition.substring(0, 120)}...\n`;
+    text += `  Raw score: ${raw}/100 (weight: ${v.weight}, contributes: ${contrib})\n`;
+    text += `  Scoring method: ${method}\n`;
+
+    if (v.hasTier && s.tier === "tier1") {
+      text += `  RCS score: ${s.rcsScore !== null ? s.rcsScore : "(not entered)"}\n`;
+    } else {
+      v.factors.forEach((f, i) => {
+        const mark = s.checks[i] ? "\u2713" : "\u2717";
+        text += `  ${mark} [${s.checks[i] ? f.pts : 0}/${f.pts}] ${f.cond}\n`;
+      });
+    }
+
+    if (s.justification && s.justification.trim()) {
+      text += `  JUSTIFICATION: ${s.justification.trim()}\n`;
+    }
+    text += `\n`;
+  });
+
+  text += `${"=".repeat(60)}\n`;
+  text += `Framework: R* Composite Priority Index v2.0 (Diggs, Karl, Keeling)\n`;
+  text += `RCS reference: doi.org/10.5281/zenodo.15208172\n`;
+  text += `Triage thresholds: >=70 Mirror Now | 40-69 Stabilize & Mirror | <40 Monitor\n`;
+  return text;
+}
+
+function getResultsJSON() {
+  const name = document.getElementById("ds-name").value || "";
+  const dsid = document.getElementById("ds-id").value || "";
+  const curator = document.getElementById("ds-curator").value || "";
+  const curatorEmail = document.getElementById("ds-curator-email").value || "";
+  const date = new Date().toISOString();
+
+  const rstar = Math.round(VARS.reduce((s, v) => s + getContribution(v.id), 0));
+  let triage;
+  if (rstar >= 70) triage = "Mirror Now";
+  else if (rstar >= 40) triage = "Stabilize & Mirror";
+  else triage = "Monitor";
+
+  const result = {
+    assessmentTimestamp: date,
+    dataset: { name: name, identifier: dsid },
+    primaryDataCurator: { name: curator, email: curatorEmail },
+    rStarCompositeScore: rstar,
+    triageTier: triage,
+    formula: "R* = 0.40\u00b7D + 0.30\u00b7P + 0.20\u00b7(1-RRS) + 0.10\u00b7DIRS",
+    components: {}
+  };
+
+  VARS.forEach(v => {
+    const raw = getRawScore(v.id);
+    const s = state[v.id];
+    const comp = {
+      label: v.label,
+      definition: v.definition,
+      rawScore: raw,
+      weight: v.weight,
+      weightedContribution: Math.round(getContribution(v.id)),
+      scoringMethod: v.hasTier ? (s.tier === "tier1" ? "RCS_formal" : "rapid_assessment") : "rapid_assessment",
+      justification: s.justification || ""
+    };
+
+    if (v.hasTier && s.tier === "tier1") {
+      comp.rcsScore = s.rcsScore;
+    } else {
+      comp.factors = {};
+      v.factors.forEach((f, i) => {
+        const key = f.cond.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/(^_|_$)/g, "");
+        comp.factors[key] = { condition: f.cond, present: s.checks[i], points: s.checks[i] ? f.pts : 0, maxPoints: f.pts };
+      });
+    }
+    result.components[v.id] = comp;
+  });
+
+  result.framework = {
+    name: "R* Composite Priority Index",
+    version: "2.0",
+    authors: ["S.C. Diggs", "T.R. Karl", "R. Keeling"],
+    rcsReference: "https://doi.org/10.5281/zenodo.15208172",
+    triageThresholds: { mirrorNow: ">=70", stabilizeAndMirror: "40-69", monitor: "<40" }
+  };
+
+  return JSON.stringify(result, null, 2);
+}
+
+function copyResults() {
+  stampTime();
+  navigator.clipboard.writeText(getResultsText()).then(() => showToast("Results copied to clipboard"));
+}
+
+function copyJSON() {
+  stampTime();
+  navigator.clipboard.writeText(getResultsJSON()).then(() => showToast("JSON copied to clipboard"));
+}
+
+function resetAll() {
+  document.getElementById("ds-name").value = "";
+  document.getElementById("ds-id").value = "";
+  document.getElementById("ds-curator").value = "";
+  document.getElementById("ds-curator-email").value = "";
+  document.getElementById("timestamp-bar").textContent = "";
+  document.getElementById("action-result").className = "action-result";
+  VARS.forEach(v => {
+    state[v.id].checks = v.factors.map(() => false);
+    state[v.id].rcsScore = null;
+    state[v.id].justification = "";
+    document.getElementById("just-" + v.id).value = "";
+    if (v.hasTier) {
+      state[v.id].tier = "tier2";
+      document.querySelector(`input[name="tier-${v.id}"][value="tier2"]`).checked = true;
+      document.getElementById("rcs-" + v.id).style.display = "none";
+      document.getElementById("factors-" + v.id).style.display = "block";
+      document.getElementById("ftotal-" + v.id).style.display = "block";
+      const rcsInput = document.getElementById("rcs-val-" + v.id);
+      if (rcsInput) rcsInput.value = "";
+    }
+    v.factors.forEach((f, i) => {
+      document.getElementById("cb-" + v.id + "-" + i).checked = false;
+    });
+  });
+  recalc();
+  showToast("Reset complete");
+}
+
+buildUI();
+recalc();
+</script>
+</body>
+</html>
