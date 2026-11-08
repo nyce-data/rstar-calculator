@@ -2,7 +2,7 @@
 
 A single-file web tool that walks an operator through an **R\*** dataset vulnerability assessment and produces a reproducible triage score with a recommended action. No build step, no dependencies, no server. Open the HTML file and score.
 
-Live tool: **https://sdiggs.github.io/rstar-calculator/**
+Live tool: **https://nyce-data.github.io/rstar-calculator/**
 
 ---
 
@@ -10,13 +10,13 @@ Live tool: **https://sdiggs.github.io/rstar-calculator/**
 
 The R\* Composite Priority Index is a rapid-assessment vulnerability index built for crisis conditions. It assumes institutional instability rather than steady-state operations, and it explicitly accounts for the human expertise dimension of data risk that most frameworks miss. It's one of three frameworks in an ensemble approach to climate data preservation:
 
-- [**UReDI**](https://sdiggs.github.io/uredi-calculator/) answers *how much a dataset is worth and how hard it would be to recover.*
+- [**UReDI**](https://nyce-data.github.io/uredi-calculator/) answers *how much a dataset is worth and how hard it would be to recover.*
 - **R\*** answers *how likely we are to lose it.*
 - The Keeling Curve Foundation's **Long-Term Observations** inventory answers *which measurement series must keep running.*
 
 Value, risk, and continuity are three different questions. Run together they catch what any one framework alone would miss.
 
-This calculator is the companion to the [UReDI Calculator](https://sdiggs.github.io/uredi-calculator/) and follows the same single-file, zero-dependency design.
+This calculator is the companion to the [UReDI Calculator](https://nyce-data.github.io/uredi-calculator/) and follows the same single-file, zero-dependency design.
 
 ## What it does
 
@@ -107,7 +107,7 @@ Working build, under active road-testing and iteration. Known items for upcoming
 
 ## Related
 
-- [UReDI Calculator](https://sdiggs.github.io/uredi-calculator/): the value framework in the ensemble
+- [UReDI Calculator](https://nyce-data.github.io/uredi-calculator/): the value framework in the ensemble
 - The Ensemble Framework for Climate Data Preservation, which sets out how R\*, UReDI, and the Keeling Curve Foundation's Long-Term Observations inventory work together
 
 ## Attribution
